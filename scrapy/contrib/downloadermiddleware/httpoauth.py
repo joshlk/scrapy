@@ -11,7 +11,7 @@ from scrapy import signals
 
 
 class HttpOAuth1Middleware(object):
-    """Set Oauth 1.0 RFC 5849 HTTP Authorization header"""
+    """Oauth 1.0 RFC 5849"""
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -37,14 +37,15 @@ class HttpOAuth1Middleware(object):
 
     def process_request(self, request, spider):
         auth = getattr(self, 'auth', None)
-        if auth and 'Authorization' not in request.headers:
+        oauth_used = request.meta.get('oauth', False)
+        if auth and not oauth_used:
             headers = self.auth.sign(request.url)
-            request.replace(headers=headers)
-            # request.headers['Authorization'] = oauth_header['Authorization']
-
+            request = request.replace(headers=headers)
+            request.meta['oauth'] = True
+            return request
 
 class HttpOAuth2Middleware(object):
-    """Set Oauth 2.0 RFC 6749 HTTP Authorization header"""
+    """Oauth 2.0 RFC 6749"""
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -62,12 +63,13 @@ class HttpOAuth2Middleware(object):
             if all((client_id, token)):
                 self.auth = Oauth2Client(client_id, token=token)
 
-    def _is_secure_transport(uri):
+    def _is_secure_transport(self, uri):
         return uri.lower().startswith('https://')
 
     def process_request(self, request, spider):
         auth = getattr(self, 'auth', None)
-        if auth and 'Authorization' not in request.headers:
+        oauth_used = request.meta.get('oauth', False)
+        if auth and not oauth_used:
             if not self._is_secure_transport(request.url):
                 raise InsecureTransportError()
             url, headers, body = self.auth.add_token(
@@ -75,7 +77,9 @@ class HttpOAuth2Middleware(object):
                 http_method=request.method,
                 body=request.body,
                 headers=request.headers)
-            request.replace(
+            request = request.replace(
                 url=url,
-                headers=headers
+                headers=headers,
                 body=body)
+            request.meta['oauth'] = True
+            return request
