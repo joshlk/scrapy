@@ -89,12 +89,6 @@ class HttpOAuth1Middleware(object):
                 return response
 
     def spider_idle(self, spider):
-        '''
-        The spider has gone idle, which means the spider has no further:
-        * requests waiting to be downloaded
-        * requests scheduled
-        * items being processed in the item pipeline
-        '''
 
         if len(self.requests_on_hold) != 0:
             # Use live tokens if some remain
